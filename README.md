@@ -7,22 +7,37 @@ High-quality molecular representation is essential for AI-driven drug discovery.
 
 # Environment
 ## GPU environment
-CUDA 11.6
+CUDA 11.8
 
 ## create a new conda environment
-- conda create -n GapCL python=3.9
+- conda create -n GapCL python=3.8
 - conda activate GapCL
 
+## Requirements
+- dgl==2.1.0+cu118
+- dglgo==0.0.2
+- networkx==3.1
+- numpy==1.24.4
+- ogb==1.3.6
+- pandas==2.0.3
+- pillow==10.4.0
+- PyYAML==6.0.1
+- rdkit==2022.9.1
+- rdkit-pypi==2022.9.5
+- requests==2.32.3
+- scikit-learn==1.3.2
+- scipy==1.10.1
+- torch==2.2.1+cu118
+- torchaudio==2.2.1+cu118
+- torchdata
+- torchvision==0.17.1+cu118
+- tqdm==4.66.4
+- deepchem==2.8.0
+
 ## install environment
-- pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu116 -i https://pypi.tuna.tsinghua.edu.cn/simple
-- conda install -c dglteam dgl-cuda11.6
-- pip install chardet
-- pip install rdkit==2022.9.1
-- pip install pynauty
-- pip isntall Pyarrow
-- pip install pandas
-- pip install scikit-learn
-- pip install communities
+This repositories is built based on python == 3.8.19. You could simply run
+''' pip install -r requirements.txt 
+to install other packages.
 
 # Datasets
 We selected 12 subtasks from the MoleculeNet dataset ([Wu et al. 2018](10.1039/C7SC02664A)) for experimental evaluation, comprising 9 classification tasks and 3 regression tasks. 
@@ -84,18 +99,9 @@ We refer to some excellent implementations of baselines used in our paper.
 | GROVER | Pretraining  |  GraphMVP | Pretraining  |
 | MolCLR | Pretraining  | GEM | Pretraining  |
 
-# Usage Tour
-First, you need to preprocess the molecular datasets to the format of Uni-mol. Then call train.py to reproduce the results. For instance, if you want to implement the domain adaptation task with GapCL in BBBP, you can use the following comment:
-
-‘’‘ python train.py ./configs_im/bbbp_gap.json GCN cuda:0 ’‘’
-
-🌟Tips: Although the paper has provided detailed experimental descriptions, in order to accelerate your reproduction, please focus on the following points and parameters:
-
-1. Use --gnn_type and --pretrain_gnn_path to specify different GNN methods and corresponding initialization pre-training weights;
-
-2.Perform grid search for --weight_te and --weight_ke in [0.001, 0.01, 0.1, 1, 5];
-
-3.For specific --weight_te and --weight_ke values, set --runseed from 0 to 9 and calculate the mean and variance.
+# 🌟Quick Run
+First, you need to preprocess the molecular datasets to the format of Uni-mol. Then call train.py to reproduce the results. For instance, if you want to implement the domain adaptation task with GapCL in SIDER, you can use the following comment:
+''' python train.py --config_path configs/sider.json --model_type GCN --device cuda:0 --target node --aug_size 0.5 --aug_method gap --save_model
 
 # Reference
 If our paper or code is helpful to you, please do not hesitate to point a star for our repository and cite the following content.
