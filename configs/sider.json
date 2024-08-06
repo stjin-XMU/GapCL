@@ -1,0 +1,23 @@
+{
+	"data": {
+		"path": "./moleculenet/sider.csv",
+		"task": "multiclass",
+		"tasks": ["Hepatobiliary_disorders", "Metabolism_and_nutrition_disorders", "Product_issues", "Eye_disorders", "Investigations", "Musculoskeletal_and_connective_tissue_disorders", "Gastrointestinal_disorders", "Social_circumstances", "Immune_system_disorders", "Reproductive_system_and_breast_disorders", "Neoplasms_benign,_malignant_and_unspecified_(incl_cysts_and_polyps)", "General_disorders_and_administration_site_conditions", "Endocrine_disorders", "Surgical_and_medical_procedures","Vascular_disorders","Blood_and_lymphatic_system_disorders","Skin_and_subcutaneous_tissue_disorders","Congenital,_familial_and_genetic_disorders","Infections_and_infestations","Respiratory,_thoracic_and_mediastinal_disorders","Psychiatric_disorders","Renal_and_urinary_disorders","Pregnancy,_puerperium_and_perinatal_conditions","Ear_and_labyrinth_disorders","Cardiac_disorders","Nervous_system_disorders","Injury,_poisoning_and_procedural_complications"],
+		"batch_size": 16
+	},
+	"train": {
+		"loss_fn": "bce",
+		"metric_fn": "auc",
+		"lr": 0.001,
+		"epochs": 100,
+		"num_fold": 5
+	},
+	"model": {
+		"featurizer": ["set1","set1"],
+		"hid_dim": 64,
+		"depth": 1,
+		"act": "ReLU",
+		"num_task": 27
+	},
+	"seed": 42
+}

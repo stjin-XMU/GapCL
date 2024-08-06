@@ -1,0 +1,23 @@
+{
+	"data": {
+		"path": "./moleculenet/tox21.csv",
+		"task": "classification",
+		"tasks": ["NR-AR", "NR-AR-LBD", "NR-AhR", "NR-Aromatase", "NR-ER", "NR-ER-LBD", "NR-PPAR-gamma", "SR-ARE", "SR-ATAD5", "SR-HSE", "SR-MMP", "SR-p53"],
+		"batch_size": 256
+	},
+	"train": {
+		"loss_fn": "bce",
+		"metric_fn": "auc",
+		"lr": 0.001,
+		"epochs": 100,
+		"num_fold": 5
+	},
+	"model": {
+		"featurizer": ["set1","set1"],
+		"hid_dim": 256,
+		"depth": 3,
+		"act": "ReLU",
+		"num_task": 12
+	},
+	"seed": 2022
+}

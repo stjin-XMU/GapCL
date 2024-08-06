@@ -1,0 +1,23 @@
+{
+	"data": {
+		"path": "./moleculenet/bbbp.csv",
+		"task": "classification",
+		"tasks": ["p_np"],
+		"batch_size": 64
+	},
+	"train": {
+		"loss_fn": "bce",
+		"metric_fn": "auc",
+		"lr": 0.001,
+		"epochs": 100,
+		"num_fold": 5
+	},
+	"model": {
+		"featurizer": ["set1","set1"],
+		"hid_dim": 64,
+		"depth": 1,
+		"act": "ReLU",
+		"num_task": 1
+	},
+	"seed": 42
+}
