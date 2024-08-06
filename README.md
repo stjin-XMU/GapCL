@@ -27,22 +27,20 @@ pip install communities
 # Dataset
 We selected 12 subtasks from the MoleculeNet dataset ([Wu et al. 2018](10.1039/C7SC02664A)) for experimental evaluation, comprising 9 classification tasks and 3 regression tasks. 
 
-| 表头1 | 表头2 | 表头3 |
-| :---: | :---: | :---: |
-| 单元格1 | 单元格2 | 单元格3 |
-| 单元格4 | 单元格5 | 单元格6 |
-
-
-  “
-   | 列1标题 | 列2标题 | 列3标题 |
-   | ——- | ——- | ——- |
-   | 行1单元格1 | 行1单元格2 | 行1单元格3 |
-   | 行2单元格1 | 行2单元格2 | 行2单元格3 |
-   “
-
-| Dataset | #Molecule | #Task | #Task Type|
-| BBBP | --- | --- |
-| 单元格1 | 单元格2 | 单元格3 |
+| Dataset | #Molecule | #Task | #Task Type |
+| :---: | :---: | :---: |:---: |
+| BBBP  | 2,035 | 1  Classification|
+| BACE | 1,513 | 1 | Classification |
+| HIV | 41,127 | 1 | Classification |
+| Tox21 | 7,821 | 12 | Classification | 
+| SIDER | 1,379 | 27 | Classification |
+| ClinTox | 1,468 | 2 | Classification |
+| ToxCast | 8615 | 617 | Classification |
+| MUV | 93127 | 17 | Classification |
+| PCBA | 437,928 | 128 | & | Classification |
+| ESOL | 1,128 | 1 | Regression |
+| FreeSolv | 642 | 1 | Regression |
+| Lipophilicity  | 4,198 | 1 | Regression | 
 
 
 
