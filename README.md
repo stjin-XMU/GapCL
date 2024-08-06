@@ -10,19 +10,19 @@ High-quality molecular representation is essential for AI-driven drug discovery.
 CUDA 11.6
 
 ## create a new conda environment
-conda create -n GapCL python=3.9
-conda activate GapCL
+- conda create -n GapCL python=3.9
+- conda activate GapCL
 
 ## install environment
-pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu116 -i https://pypi.tuna.tsinghua.edu.cn/simple
-conda install -c dglteam dgl-cuda11.6
-pip install chardet
-pip install rdkit==2022.9.1
-pip install pynauty
-pip isntall Pyarrow
-pip install pandas
-pip install scikit-learn
-pip install communities
+- pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu116 -i https://pypi.tuna.tsinghua.edu.cn/simple
+- conda install -c dglteam dgl-cuda11.6
+- pip install chardet
+- pip install rdkit==2022.9.1
+- pip install pynauty
+- pip isntall Pyarrow
+- pip install pandas
+- pip install scikit-learn
+- pip install communities
 
 # Datasets
 We selected 12 subtasks from the MoleculeNet dataset ([Wu et al. 2018](10.1039/C7SC02664A)) for experimental evaluation, comprising 9 classification tasks and 3 regression tasks. 
@@ -46,21 +46,36 @@ We selected 12 subtasks from the MoleculeNet dataset ([Wu et al. 2018](10.1039/C
 We refer to some excellent implementations of baselines used in our paper.
 ## Graph representation models
 - GCN [Kipf and Welling 2016](https://doi.org/10.48550/arXiv.1609.02907)
+  
   https://github.com/tkipf/gcn
+  
   https://github.com/tkipf/pygcn
+  
 - GAT [Velickovic et al. 2017](https://doi.org/10.48550/arXiv.1710.10903)
+  
   https://github.com/Diego999/pyGAT
+  
 - MPNN [Gilmer et al. 2017](https://arxiv.org/pdf/1704.01212)
+  
   https://github.com/brain-research/mpnn
+  
 - CoMPT [Chen et al.2021](https://doi.org/10.24963/ijcai.2021/309)
+  
   https://github.com/jcchan23/CoMPT
+  
 - Uni-mol [Zhou et al. 2023](https://openreview.net/forum?id=6K2RM6wVqKu)
+  
   https://github.com/deepmodeling/Uni-Mol
+  
 ## Adversarial learning methods
 - PGD [Madry et al. 2017](https://doi.org/10.48550/arXiv.1706.06083)
+  
   https://github.com/Harry24k/PGD-pytorch
+  
 - FLAG [kong2022robust](https://arxiv.org/abs/2010.09891)
+  
   https://github.com/devnkong/FLAG
+  
 ## Other comparison models
 | Model | #Model Type | #Model | #Model Type |
 | :---: | :---: | :---: |:---: |
@@ -71,7 +86,7 @@ We refer to some excellent implementations of baselines used in our paper.
 
 # Usage Tour
 First, you need to preprocess the molecular datasets to the format of Uni-mol. Then call train.py to reproduce the results. For instance, if you want to implement the domain adaptation task with GapCL in BBBP, you can use the following comment:
-python train.py ./configs_im/bbbp_gap.json GCN cuda:0
+‘’‘python train.py ./configs_im/bbbp_gap.json GCN cuda:0’‘’
 
 🌟Tips: Although the paper has provided detailed experimental descriptions, in order to accelerate your reproduction, please focus on the following points and parameters:
 1。Use --gnn_type and --pretrain_gnn_path to specify different GNN methods and corresponding initialization pre-training weights;
