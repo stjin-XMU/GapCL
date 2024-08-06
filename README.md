@@ -101,6 +101,7 @@ We refer to some excellent implementations of baselines used in our paper.
 
 # 🌟Quick Run
 First, you need to preprocess the molecular datasets to the format of Uni-mol. Then call train.py to reproduce the results. For instance, if you want to implement the domain adaptation task with GapCL in SIDER, you can use the following comment:
+
 `python train.py --config_path configs/sider.json --model_type GCN --device cuda:0 --target node --aug_size 0.5 --aug_method gap --save_model`
 
 # Reference
