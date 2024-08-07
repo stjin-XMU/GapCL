@@ -36,7 +36,9 @@ CUDA 11.8
 
 ## install environment
 This repositories is built based on python == 3.8.19. You could simply run
-''' pip install -r requirements.txt 
+
+` pip install -r requirements.txt 
+
 to install other packages.
 
 # Datasets
