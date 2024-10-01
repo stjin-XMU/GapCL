@@ -3,21 +3,35 @@
 		"path": "./moleculenet/esol.csv",
 		"task": "regression",
 		"tasks": ["logSolubility"],
-		"batch_size": 64
+		"batch_size": 8
 	},
 	"train": {
-		"loss_fn": "mse",
+		"loss_fn": "rmse",
 		"metric_fn": "rmse",
 		"lr": 0.001,
+
+		"temperature": 0.05,
+		"use_cl": true,
+		"lambda_cl": 0.01,
+
 		"epochs": 100,
-		"num_fold": 5
+		"num_fold": 1,
+		"augment": {
+			"depth": 3,
+			"size": 0.01,
+			"constrain": "inf",
+			"target": "node",
+			"init_method": "zero",
+			"lc_method": "last"
+		}
 	},
 	"model": {
-		"featurizer": ["set1","set1"],
-		"hid_dim": 64,
-		"depth": 1,
+		"featurizer": ["set3","set1"],
+		"before_encoder":true,
+		"hid_dim": 256,
+		"depth": 3,
 		"act": "ReLU",
 		"num_task": 1
 	},
-	"seed": 42
+	"seed": 2022
 }
