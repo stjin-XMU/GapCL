@@ -1,14 +1,10 @@
 import torch
 from torch import nn
-#from dgl import function as fn
+from dgl import function as fn
 
 from .basic import *
 
-# to be implemented:
-# master node and virtual edge
-# GIN
-
-__all__ = [ 'GCN']
+__all__ = [ 'MPNN']
 
 
 class BaseGNN(nn.Module):
@@ -26,7 +22,6 @@ class BaseGNN(nn.Module):
             self.few_shot = False
         elif isinstance(args['num_task'], tuple):
             self.num_train_tasks, self.num_test_tasks = args['num_task']
-            # self.num_tasks = max(args['num_task'])
             self.num_tasks = sum(args['num_task'])
             self.few_shot = True
             self.test = False
@@ -44,8 +39,6 @@ class BaseGNN(nn.Module):
         self.edge_perturb = None
         self.graph_perturb = None
 
-        # if args['augment']['target'] == 'node':
-        #     self.attacker = nn.Linear(args['atom_dim'],args['atom_dim'])
 
     def initialize_weights(self):
         for param in self.parameters():
@@ -75,11 +68,6 @@ class BaseGNN(nn.Module):
                     bg.edata['h'] = self.w_bond(bg.edata['x'])+self.edge_perturb
                 self.edge_perturb = None
             else:
-                # print("Shape of bg.edata['x']:", bg.edata['x'].shape)
-                # print("bg.edata['x']:", bg.edata['x'])
-                # print("Shape of bg.ndata['x']:", bg.ndata['x'].shape)
-                # print("bg.ndata['x']:", bg.ndata['x'])
-                # print(bg)
                 if bg.edata['x'].shape[1] == 0:
                     # TODO
                     bg.edata['h'] = torch.zeros((bg.num_edges(), self.w_bond.out_features))
@@ -101,11 +89,6 @@ class BaseGNN(nn.Module):
                 out = out[:,self.num_train_tasks:]
             else:
                 out = out[:,:self.num_train_tasks]
-
-            # if self.test:
-            #     out = out[:,:self.num_test_tasks]
-            # else:
-            #     out = out[:,:self.num_train_tasks]
                 
         self.last_x = x
         return out # return the graph readout embedding vector
@@ -117,29 +100,35 @@ class BaseGNN(nn.Module):
         raise NotImplementedError
 
 
-class GCN(BaseGNN):
-    """https://arxiv.org/abs/1609.02907"""
+
+class MPNN(BaseGNN):
+    """best MPNN variant of Neural Message Passing for Quantum Chemistry 
+    edge network message function +  gru update + set2set readout
+    """
 
     def __init__(self, args):
-        super(GCN, self).__init__(args)
-        self.depth = args['depth']
-        self.w = nn.ModuleList([nn.Linear(self.hid_dim, self.hid_dim)
-                               for _ in range(self.depth)])
+        super(MPNN, self).__init__(args)
 
-        self.register_module('w_bond', None)
-        self.readout = mean_pooling
+        hid_dim = args['hid_dim']
+        # message
+        self.w_e = nn.Linear(hid_dim, hid_dim*hid_dim)
+        self.message = edge_network
+        self.reduce = fn.sum('m', 'm')
+        # update
+        self.gru = nn.GRUCell(hid_dim, hid_dim)
+        # readout
+        self.readout = Set2Set(hid_dim, 2*hid_dim, self.act)
+
         self.initialize_weights()
+
+    def update(self, node):
+        return {'h': self.gru(node.data['m'].squeeze(1), node.data['h'])}
 
     def forward(self, bg):
         self.init_feat(bg)
-        node_feats = bg.ndata['h']
-        n = bg.num_nodes()
-        self_loop = torch.diag(torch.ones(n)).to(bg.device)
-        a = (bg.adjacency_matrix().to_dense() + self_loop).to(bg.device)
-        d = torch.diag(1/a.sum(0)**0.5)
-        for layer in self.w:
-            node_feats = self.act(d@a@d@layer(node_feats))
-        bg.ndata['h'] = node_feats
+        bg.apply_edges(lambda edge: {'h': self.w_e(edge.data['h'])})
+        for _ in range(self.depth):
+            bg.update_all(self.message, self.reduce, self.update)
         graph_feats = self.readout(*split_batch(bg))
-        return self.out(graph_feats)
 
+        return self.out(graph_feats)
