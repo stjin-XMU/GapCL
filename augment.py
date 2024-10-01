@@ -1,5 +1,4 @@
 import torch
-from torch import autograd
 from mrgnn.utils import calculate_loss
 from losses import SupConLoss
 import time
@@ -30,28 +29,24 @@ def gap_augment(bg, labels, model, loss_fn, args, device, init=None):
     cl_fn = SupConLoss().to(device)
 
     perturb = init.to(device)
-    if args.get('origin', True):
-        preds = model(bg)
-        x_org = model.get_last_x()
-        loss = calculate_loss(preds, labels, loss_fn).mean()
-        loss.backward()
-        losses.append(loss)
+    preds = model(bg)
+    x_org = model.get_last_x()
+
 
     for i in range(depth):
         perturb.requires_grad_()
         if args.get('target', 'node') == 'node':
             model.node_perturb = perturb
+        elif args['target'] == 'edge':
+            model.edge_perturb = perturb
+        elif args['target'] == 'graph':
+            model.graph_perturb = perturb
         else:
             raise ValueError(f'Not supported perturb target {args["target"]}, you can only perturb the `node` or the `edge`.')
         preds = model(bg)
         x_gap = model.get_last_x() #last x, last feature of x(before linear layer)
         loss = calculate_loss(preds, labels, loss_fn).mean()/depth
-        scloss = cl_fn(x_org, x_gap) * lambda_cl
-        if is_comm:
-            losses.append(loss + scloss)
-        else:
-            losses.append(loss)
-        # grad = autograd.grad(loss, perturb)[0]
+
         loss.backward()
         grad = perturb.grad
         if constrain == 'inf':
@@ -66,6 +61,16 @@ def gap_augment(bg, labels, model, loss_fn, args, device, init=None):
             raise ValueError('Unknow constrain')
         
         perturbs.append(perturb.clone())
+    
+    # update theta
+    preds = model(bg)
+    x_gap = model.get_last_x() #last x, last feature of x(before linear layer)
+    scloss = cl_fn(x_org, x_gap) * lambda_cl
+    loss = calculate_loss(preds, labels, loss_fn).mean()
+    if is_comm:
+        losses.append(loss + scloss)
+    else:
+        losses.append(loss)
 
     return perturbs, losses
 
@@ -85,7 +90,10 @@ def random_augment(bg, labels, length, model, loss_fn, args, device):
                 device).uniform_(-size, size)
         if args.get('target', 'node') == 'node':
             model.node_perturb = perturb
-            print(model.node_perturb)
+        elif args['target'] == 'edge':
+            model.edge_perturb = perturb
+        elif args['target'] == 'graph':
+            model.graph_perturb = perturb
         else:
             raise ValueError(f'Not supported perturb target {args["target"]}, you can only perturb the `node` or the `edge`.')
         preds = model(bg)
@@ -101,8 +109,12 @@ def augment_loss(aug_arg, idx, bg, labels, loss_fn, trainloader, model, epoch):
     Compute the loss with GAP
     Args:
         args (dict):
-            init_method: how the GAP is initialized. Possible choices: `mean`. 
+            init_method: how the GAP is initialized. Possible choices: `last`, `mean`, `max`, `zero`, `uniform`, default to `zero`. 
+                `last`: use the last perturbation from the last epoch; 
                 `mean`: use the mean of the perturbations from the last epoch; 
+                `max`: use the perturbation that maximize the loss; 
+                `zero`: init the perturbation with zeros; 
+                `uniform`: sample a random perturbation from a uniform distributioin( U(-size,size) ); 
             depth: how many times the GAP is updated. 
             size: bound of the GAP. 
             constrain: method to constrain the GAP. Possible values: `inf`, `l2`. Default to 'inf'. `inf` constains the l_{inf}-norm le to `size` that each scaler of the GAP is in [-size, size]. 
@@ -112,22 +124,39 @@ def augment_loss(aug_arg, idx, bg, labels, loss_fn, trainloader, model, epoch):
     """
     aug_method = aug_arg.get('method','gap')
     device = bg.device
-
-    if aug_arg['target'] == 'node':
+    # print(aug_method)
+    if aug_arg['target'] == 'graph':
+        model.gap_dim = model.hid_dim
+        length = bg.batch_size
+    elif aug_arg['target'] == 'node':
         length = bg.num_nodes()
         if model.before_encoder:
             model.gap_dim = model.node_dim
         else:
             model.gap_dim = model.hid_dim
+    elif aug_arg['target'] == 'edge':
+        length = bg.num_edges()
+        if model.before_encoder:
+            model.gap_dim = model.edge_dim
+        else:
+            model.gap_dim = model.hid_dim
             
+
     if aug_method == 'gap':
         init_method = aug_arg.get('init_method', 'zero')
-        assert init_method in ['mean'], f'unknorw init method {init_method}'
-        #print(trainloader.dataset.dataset.perturb)
-        if epoch == 0:
+        assert init_method in ['last', 'mean', 'max', 'zero', 'uniform'], f'unknorw init method {init_method}'
+        if init_method == 'zero' or epoch == 0:
             init = torch.zeros([length, model.gap_dim]).to(device)
+        elif init_method == 'uniform':
+            init = torch.zeros([length, model.gap_dim]).to(
+                    device).uniform_(-aug_arg['size'], aug_arg['size'])
         else:
-            init = torch.cat([trainloader.dataset.dataset.perturb[i] for i in idx], dim = 0) #拼接perturb
+            if(aug_arg['target'] == 'graph'):
+                init = torch.stack([trainloader.dataset.dataset.perturb[i] for i in idx], dim = 0)
+            else:
+                init = torch.cat([trainloader.dataset.dataset.perturb[i] for i in idx], dim = 0) #拼接perturb
+               
+        
         perturbs, loss_aug = gap_augment(bg, labels, model, loss_fn, aug_arg, device, init)
 
     elif aug_method == 'random':
@@ -150,21 +179,38 @@ def augment_loss(aug_arg, idx, bg, labels, loss_fn, trainloader, model, epoch):
         if init_method == 'mean':
             save_perturb = torch.stack(perturbs).mean(0).cpu()
             save = True
-        else:
-            raise ValueError('init method is not provided now.')
-
+        elif init_method == 'last':
+            save_perturb = perturbs[-1].cpu()
+            save = True
+        elif init_method == 'max':
+            raise ValueError('init method max is conflict with the training process now.')
+            save_perturb = torch.stack(perturbs).cpu()
+            select = torch.stack(loss_aug).max(0)[1]
+            save = True
         if save:
             node_size = bg.batch_num_nodes()
-            start_index = torch.cat([torch.tensor([0], device=device), torch.cumsum(node_size, 0)[:-1]])
-            type_size = node_size
+            edge_size = bg.batch_num_edges()
+            if(aug_arg['target'] == 'edge'):
+                start_index = torch.cat([torch.tensor([0], device=device), torch.cumsum(edge_size, 0)[:-1]])
+                type_size = edge_size
+            else:
+                start_index = torch.cat([torch.tensor([0], device=device), torch.cumsum(node_size, 0)[:-1]])
+                type_size = node_size
             for i in range(bg.batch_size):
                 start, size = start_index[i], type_size[i]
                 # assert size != 0
-                if select is None:
-                    cur_perturb = save_perturb.narrow(0, start, size)
+                if aug_arg['target'] == 'graph':
+                    if select is None:
+                        cur_perturb = save_perturb[i]
+                    else:
+                        cur_perturb = save_perturb[select[i]]
+                    trainloader.dataset.dataset.perturb[idx[i]] = cur_perturb
                 else:
-                    cur_perturb = save_perturb[select[i]].narrow(0, start, size)
-                trainloader.dataset.dataset.perturb[idx[i]] = cur_perturb
+                    if select is None:
+                        cur_perturb = save_perturb.narrow(0, start, size)
+                    else:
+                        cur_perturb = save_perturb[select[i]].narrow(0, start, size)
+                    trainloader.dataset.dataset.perturb[idx[i]] = cur_perturb
 
     loss = sum(loss_aug)/2
     perturb_metrics = {'cos':cos_aug,'l2-norm':norm_2, 'inf-norm':norm_inf}
