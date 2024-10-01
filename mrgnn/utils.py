@@ -1,5 +1,6 @@
 from torch import nn
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 import torch
 import deepchem as dc
@@ -15,16 +16,6 @@ def modify_config(config):
     """inplace change to config"""
     if 'featurizer' not in config['model']:
         config['model']['featurizer'] = ['set1','set1']
-
-
-    if config['model']['model_type'] == 'GGNN':
-        if config['model']['featurizer'][1] not in ['set2']:
-            print('GGNN requires discrete edge feature')
-            config['model']['featurizer'][1] = 'set2'
-    elif config['model']['model_type'] == 'GAT':
-        if 'n_head' not in config['model']:
-            print('specify number of heads for GAT. Using default 4')
-            config['model']['n_head'] = 4
 
 
 def num_atom(mol):
@@ -93,29 +84,64 @@ def scaffold_split(df, sizes=[0.8, 0.2]):
 
     return train, test
 
-def split(dataset, size=[0.8, 0.1, 0.1], split_type='size', seed=0):
+
+
+def random_scaffold_split(df, sizes=[0.8, 0.2]):
+    df['mol'] = df['smiles'].apply(Chem.MolFromSmiles)
+    assert sum(sizes) == 1
+
+    # Split
+    n = len(df)
+    train_size, test_size = sizes[0] * n, sizes[1] * n
+    train, test = [], []
+    train_scaffold_count, test_scaffold_count = 0, 0
+    
+    rng = np.random.RandomState(0)
+
+    # Map from scaffold to index in the data
+    scaffold_to_indices = scaffold_to_smiles(df['mol'], use_indices=True)
+
+    index_sets = rng.permutation(list(scaffold_to_indices.values()))
+
+    for index_set in index_sets:
+        if len(train) + len(index_set) <= train_size:
+            train += index_set
+            train_scaffold_count += 1
+        else:
+            test += index_set
+            test_scaffold_count += 1
+
+    print(f'Total scaffolds = {len(scaffold_to_indices):,} | '
+          f'train scaffolds = {train_scaffold_count:,} | '
+          f'test scaffolds = {test_scaffold_count:,}')
+
+    return train, test
+
+
+def split(df, size=[0.8, 0.1, 0.1], split_type='size', seed=0, fold=0):
     if split_type == 'size':
-        train, test = size_split(dataset.data, [size[0]+size[1], size[2]])
+        train, test = size_split(df, [size[0]+size[1], size[2]])
     elif split_type == 'scaffold':
-        train, test = scaffold_split(dataset.data, [size[0]+size[1], size[2]])
+        train, test = scaffold_split(df, [size[0]+size[1], size[2]])
+    elif split_type == 'chem_scaffold':
+        index = get_scaffold_split(df, size=size, seed=seed+fold, split_type=split_type)
+        train, valid, test = index['train'], index['valid'], index['test']
+    elif split_type == 'random_scaffold':
+        train, test = random_scaffold_split(df, [size[0]+size[1], size[2]])
     elif split_type == 'random':
         train, test = train_test_split(
-            range(len(dataset)), test_size=size[2], random_state=seed)
-    elif split_type == 'stratified':
-        assert dataset.num_task == 1, 'multi-task for stratified split'
-        train, test = next(StratifiedShuffleSplit(n_splits=1,test_size=size[2],random_state=seed).split(range(len(dataset)),dataset.labels))
+            range(len(df)), test_size=size[2], random_state=seed)
     else:
         print('supported split type: size, scaffold, random')
-    train, valid = train_test_split(
-        train, test_size=size[1]/(size[0]+size[1]), random_state=seed)
+    
+    if split_type not in ["chem_scaffold"]:
+        train, valid = train_test_split(
+            train, test_size=size[1]/(size[0]+size[1]), random_state=seed)
 
     return {"train": train, "valid": valid, "test": test}
 
 def get_scaffold_split(dataset, size=[0.8, 0.1, 0.1], split_type='size', seed=0):
-    # data = dataset.data
-    smiles = dataset.smis
-    # indx = 0
-    # remove_idx = []
+    smiles = dataset.smiles
     idx_org = [i for i in range(len(smiles))]
     xs = np.array(idx_org)
     ws = np.zeros(len(smiles))
@@ -132,10 +158,12 @@ def get_scaffold_split(dataset, size=[0.8, 0.1, 0.1], split_type='size', seed=0)
 
 def calculate_loss(preds, labels, loss_fn):
     labels.reshape(preds.shape)
-    #print("labels", labels,labels.shape)
-    #print("preds",preds,preds.shape )
     preds, truth = fill_nan_label(preds, labels)   # any loss_fn(0,0) = 0
-    loss = loss_fn(preds, truth).mean(1)  # average on num_tasks // average on num_valid_labels ??
+    
+    if truth.shape[1] > 1:
+        loss = loss_fn(preds, truth).mean(1)  # average on num_tasks // average on num_valid_labels ??
+    else:
+        loss = loss_fn(preds, truth)  # average on num_tasks // average on num_valid_labels ??
     return loss
 
 def calculate_metrics(preds, labels, metric_fn):
@@ -147,7 +175,6 @@ def calculate_metrics(preds, labels, metric_fn):
                 preds[:, i], labels[:, i])/num_task
     else:
         loss = metric_fn(preds, labels.reshape(preds.shape))
-
     return loss
 
 def fill_nan_label(pred, truth):
@@ -171,7 +198,7 @@ def remove_nan_label(pred, truth):
 def roc_auc(pred, truth):
     pred, truth = remove_nan_label(pred, truth)
     if truth.sum() == len(truth) or truth.sum() == 0:
-        return 1
+        return torch.tensor(1)
     if torch.isnan(pred).any():
         print("Found NaN")
         print(pred)
@@ -192,6 +219,8 @@ def acc(pred, truth):
 
 LOSS_FUNCS = {
     'mse': nn.MSELoss(reduction='none'),
+    'rmse': rmse,
+    'mae': mae,
     'crossentropy': nn.CrossEntropyLoss(reduction='none'),
     'bce': nn.BCEWithLogitsLoss(reduction='none'),
     
@@ -202,7 +231,6 @@ METRICS_FUNCS = {
     'mse': nn.MSELoss(reduction='mean'),
     'rmse': rmse,
     'mae': mae,
-    'acc': acc,
     'crossentropy': nn.CrossEntropyLoss(reduction='mean'),
     'bce': nn.BCEWithLogitsLoss(reduction='mean'),
 }
