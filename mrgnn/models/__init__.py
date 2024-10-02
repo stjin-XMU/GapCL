@@ -1,6 +1,6 @@
 from .network import *
 
 def build_model(model_name, args):
-    if model_name == 'GCN':
-        model = GCN(args)
+    if model_name == 'MPNN':
+        model = MPNN(args)
     return model
