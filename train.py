@@ -113,7 +113,7 @@ def train(data_args, train_args, model_args, seed, model_type, split_type='size'
                 else:
                     aug_arg = train_args["augment"]
                     loss, p_metrics = augment_loss(
-                        aug_arg, idx, bg, labels, loss_fn, trainloader, model, epoch)
+                        aug_arg, idx, bg, labels, loss_fn, trainloader, model, epoch, rn)
 
                 total_loss += loss.item()
                 loss.backward()
