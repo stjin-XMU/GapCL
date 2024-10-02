@@ -3,7 +3,7 @@ from mrgnn.utils import calculate_loss
 from losses import SupConLoss
 import time
 
-def gap_augment(bg, labels, model, loss_fn, args, device, init=None):
+def gap_augment(bg, labels, model, loss_fn, args, device, ob, rn, init=None):
     """ generate gradient-based adversial perturbation (GAP)
     Args:
         bg: batched dgl graph. 
@@ -49,14 +49,44 @@ def gap_augment(bg, labels, model, loss_fn, args, device, init=None):
 
         loss.backward()
         grad = perturb.grad
+        
         if constrain == 'inf':
             perturb = (perturb.detach() +
-                       step_size * grad.sign()).clip(-size, size)
+                       perturb.grad.sign()).clip(-size, size)
+            # Add symmetry information to Nodes
+            nodes_idx = 0
+            for index in range(0, rn.shape[0]):
+                for ob_g in ob[index]:
+                    if len(ob_g) > 1:
+                        #  Add symmetry information based on orbits
+                        mean = 0
+                        for j in range(len(ob_g)):
+                            mean = mean + perturb[nodes_idx + ob_g[j]].detach()
+                        mean = mean / len(ob_g)
+                        for j in range(len(ob_g)):
+                            perturb[nodes_idx + ob_g[j]] = (perturb[nodes_idx + ob_g[j]] + mean).clip(-size, size)
+                nodes_idx = nodes_idx + rn[index] - 1
+            # Add symmetry information to Nodes
+
         elif constrain == 'l2':
-            norm_grad = torch.einsum('ij,i->ij',grad,step_size/grad.norm(dim=1))
+            norm_grad = torch.einsum('ij,i->ij', grad, step_size / grad.norm(dim=1))  # 对行求2的范式
             norm_grad = torch.masked_fill(norm_grad, torch.isinf(norm_grad), 0)
             norm_grad = torch.masked_fill(norm_grad, torch.isnan(norm_grad), 0)
             perturb = perturb.detach() + norm_grad
+            # Add symmetry information to Nodes
+            nodes_idx = 0
+            for index in range(0, rn.shape[0]):
+                for ob_g in ob[index]:
+                    if len(ob_g) > 1:
+                        #  Add symmetry information based on orbits
+                        mean = 0
+                        for j in range(len(ob_g)):
+                            mean = mean + perturb[nodes_idx + ob_g[j]].detach()
+                        mean = mean / len(ob_g)
+                        for j in range(len(ob_g)):
+                            perturb[nodes_idx + ob_g[j]] = (perturb[nodes_idx + ob_g[j]] + mean).clip(-size, size)
+                nodes_idx = nodes_idx + rn[index] - 1
+            # Add symmetry information to Nodes
         else:
             raise ValueError('Unknow constrain')
         
@@ -104,7 +134,7 @@ def random_augment(bg, labels, length, model, loss_fn, args, device):
 
     return perturbs, losses
 
-def augment_loss(aug_arg, idx, bg, labels, loss_fn, trainloader, model, epoch):
+def augment_loss(aug_arg, idx, bg, labels, loss_fn, trainloader, model, epoch, rn):
     """
     Compute the loss with GAP
     Args:
@@ -156,8 +186,8 @@ def augment_loss(aug_arg, idx, bg, labels, loss_fn, trainloader, model, epoch):
             else:
                 init = torch.cat([trainloader.dataset.dataset.perturb[i] for i in idx], dim = 0) #拼接perturb
                
-        
-        perturbs, loss_aug = gap_augment(bg, labels, model, loss_fn, aug_arg, device, init)
+        ob = trainloader.dataset.dataset.orbits
+        perturbs, loss_aug = gap_augment(bg, labels, model, loss_fn, aug_arg, device, ob, rn, init)
 
     elif aug_method == 'random':
        
