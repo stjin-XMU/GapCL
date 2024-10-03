@@ -3,7 +3,7 @@
 		"path": "./moleculenet/esol.csv",
 		"task": "regression",
 		"tasks": ["logSolubility"],
-		"batch_size": 8
+		"batch_size": 32
 	},
 	"train": {
 		"loss_fn": "rmse",
@@ -12,12 +12,12 @@
 
 		"temperature": 0.05,
 		"use_cl": true,
-		"lambda_cl": 0.01,
+		"lambda_cl": 0.02,
 
 		"epochs": 100,
 		"num_fold": 1,
 		"augment": {
-			"depth": 3,
+			"depth": 1,
 			"size": 0.01,
 			"constrain": "inf",
 			"target": "node",
@@ -35,3 +35,4 @@
 	},
 	"seed": 2022
 }
+
