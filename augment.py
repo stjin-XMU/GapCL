@@ -60,10 +60,14 @@ def gap_augment(bg, labels, model, loss_fn, args, device, ob, rn, init=None):
                     if len(ob_g) > 1:
                         #  Add symmetry information based on orbits
                         mean = 0
+                        count = 0
                         for j in range(len(ob_g)):
-                            mean = mean + perturb[nodes_idx + ob_g[j]].detach()
-                        mean = mean / len(ob_g)
-                        for j in range(len(ob_g)):
+                            if nodes_idx + ob_g[j] < perturb.shape[0]:
+                                mean = mean + perturb[nodes_idx + ob_g[j]].detach()
+                                count += 1
+                        if count != 0 :
+                            mean = mean / count
+                        for j in range(count):
                             perturb[nodes_idx + ob_g[j]] = (perturb[nodes_idx + ob_g[j]] + mean).clip(-size, size)
                 nodes_idx = nodes_idx + rn[index] - 1
             # Add symmetry information to Nodes
@@ -80,10 +84,13 @@ def gap_augment(bg, labels, model, loss_fn, args, device, ob, rn, init=None):
                     if len(ob_g) > 1:
                         #  Add symmetry information based on orbits
                         mean = 0
+                        count = 0
                         for j in range(len(ob_g)):
-                            mean = mean + perturb[nodes_idx + ob_g[j]].detach()
-                        mean = mean / len(ob_g)
-                        for j in range(len(ob_g)):
+                            if nodes_idx + ob_g[j] < perturb.shape[0]:
+                                mean = mean + perturb[nodes_idx + ob_g[j]].detach()
+                        if count != 0 :
+                            mean = mean / count
+                        for j in range(count):
                             perturb[nodes_idx + ob_g[j]] = (perturb[nodes_idx + ob_g[j]] + mean).clip(-size, size)
                 nodes_idx = nodes_idx + rn[index] - 1
             # Add symmetry information to Nodes
