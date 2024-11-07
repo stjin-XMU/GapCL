@@ -149,6 +149,8 @@ def get_scaffold_split(dataset, size=[0.8, 0.1, 0.1], split_type='size', seed=0)
     dataset = dc.data.DiskDataset.from_numpy(X=xs,y=y,w=ws,ids=smiles)
     scaffoldsplitter = dc.splits.ScaffoldSplitter()
     train_dataset, valid_dataset, test_dataset = scaffoldsplitter.train_valid_test_split(dataset)
+    print("train_dataset", train_dataset.X.tolist())
+    print("test_dataset", test_dataset.X.tolist())
     return{
         'train': train_dataset.X.tolist(),
         'valid': valid_dataset.X.tolist(),
