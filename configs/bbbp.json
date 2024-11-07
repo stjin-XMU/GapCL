@@ -12,7 +12,7 @@
 
 		"temperature": 0.05,
 		"use_cl": true,
-		"lambda_cl": 0.01,
+		"lambda_cl": 0.02,
 
 		"epochs": 100,
 		"num_fold": 1,
