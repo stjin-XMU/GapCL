@@ -12,12 +12,12 @@
 
 		"temperature": 0.05,
 		"use_cl": true,
-		"lambda_cl": 0.01,
+		"lambda_cl": 0.02,
 		
 		"epochs": 100,
 		"num_fold": 1,
 		"augment": {
-			"depth": 5,
+			"depth": 3,
 			"size": 0.001,
 			"constrain": "l2",
 			"target": "node",
