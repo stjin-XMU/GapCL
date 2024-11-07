@@ -18,7 +18,7 @@
 		"num_fold": 1,
 		"augment": {
 			"depth": 3,
-			"size": 0.01,
+			"size": 0.001,
 			"constrain": "inf",
 			"target": "node",
 			"init_method": "zero",
